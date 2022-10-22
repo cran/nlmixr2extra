@@ -1,3 +1,14 @@
+# nlmixr2extra 2.0.8
+
+* Use `assignInMyNamespace()` instead of using the global assignment
+  operator for the horseshoe prior
+  
+* Be specific in version requirements (as requested by CRAN checks)
+
+* Move the `theoFitOde.rda` data build to `devtools::document()` to
+  reduce CRAN build time (could add more standard models like warfarin
+  for package developers which takes way too much time for CRAN)
+
 # nlmixr2extra 2.0.7
 
 * Fix `cli` issues with the new `cli` 3.4+ release that will allow

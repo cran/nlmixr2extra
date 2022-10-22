@@ -1,7 +1,7 @@
 Package: nlmixr2extra
 Title: Nonlinear Mixed Effects Models in Population PK/PD, Extra
         Support Functions
-Version: 2.0.7
+Version: 2.0.8
 Authors@R: c(
     person("Matthew", "Fidler", email="matthew.fidler@gmail.com", role = c("aut", "cre"),
            comment = c(ORCID = "0000-0001-8538-6691")),
@@ -25,9 +25,10 @@ URL: https://nlmixr2.github.io/nlmixr2extra/,
         https://github.com/nlmixr2/nlmixr2extra/
 BugReports: https://github.com/nlmixr2/nlmixr2extra/issues/
 Imports: checkmate, cli (>= 3.4.0), crayon, data.table, digest,
-        ggplot2, ggtext, lotri, nlme, nlmixr2est (>= 2.1.0), Rcpp,
-        rxode2 (>= 2.0.7), stats, symengine, utils
-Suggests: brms, nlmixr2data, testthat (>= 3.0.0), withr, dplyr
+        ggplot2, ggtext, lotri, nlme, nlmixr2est (>= 2.1.1), Rcpp,
+        rxode2 (>= 2.0.10), stats, symengine, utils
+Suggests: brms, nlmixr2data, testthat (>= 3.0.0), withr, dplyr,
+        devtools
 LinkingTo: Rcpp, RcppArmadillo
 Biarch: true
 Config/testthat/edition: 3
@@ -35,10 +36,10 @@ Encoding: UTF-8
 NeedsCompilation: yes
 RoxygenNote: 7.2.1
 LazyData: true
-Packaged: 2022-10-19 22:29:55 UTC; matt
+Packaged: 2022-10-22 15:12:13 UTC; matt
 Author: Matthew Fidler [aut, cre] (<https://orcid.org/0000-0001-8538-6691>),
   Vipul Mann [aut],
   Vishal Sarsani [aut] (<https://orcid.org/0000-0002-9272-3438>),
   Christian Bartels [ctb]
 Repository: CRAN
-Date/Publication: 2022-10-19 23:22:39 UTC
+Date/Publication: 2022-10-22 22:32:34 UTC
