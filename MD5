@@ -1,10 +1,10 @@
-98aacbc321272186a2910ab9ef873380 *DESCRIPTION
+98d3121bf7896b5f081ec8d35d685854 *DESCRIPTION
 a44f564c8ad4eff46cf9da42b551d3be *NAMESPACE
-47c6f1c92c7f2592b8012cbeb06563a5 *NEWS.md
+e95e04ed94cb81cff2725aa7361aa96e *NEWS.md
 62ec66572fd38e56596bce931a0db104 *R/RcppExports.R
 5428c5f930633d458d4b97c385d51593 *R/SCM.R
 8749adfa856862a98d19f9d07c0046e2 *R/bayesiancovsel.R
-493374994725b317bdcd2fbd661815b8 *R/computingutil.R
+2180e8430794a04851c0a4fff1363269 *R/computingutil.R
 8f58762b4125262fd500bbbaf66319c8 *R/knit_printEquation.R
 9eac5c30a9c43502978e0e7c4a4f6160 *R/lassocov.R
 62e43cc3d6eac8b68beddd86747d32b9 *R/parsingutil.R
@@ -26,7 +26,7 @@ c57a96dde3a290cb24bc059ba354a73b *cleanup.win
 0c6af3526e9af78e0636238b0e4e1f1e *man/adjustedlassoCoefficients.Rd
 96ca80cb7a9228d6809bb5bce140d489 *man/backwardSearch.Rd
 35c5a941c3ec5c4fcb166dc241a4d13f *man/bootplot.Rd
-b118a2730e958466cd84db473644c06d *man/bootstrapFit.Rd
+280edc8e50f16ab344e35b43a5e13629 *man/bootstrapFit.Rd
 bdd49b946093996adedc7b02e75d9313 *man/buildcovInfo.Rd
 3c60016d4847e1a0a4d60b19a2a65f98 *man/buildupatedUI.Rd
 738419d3bfb570bc2c26b647b8a3df76 *man/covarSearchAuto.Rd
