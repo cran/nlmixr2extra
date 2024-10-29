@@ -1,7 +1,7 @@
 Package: nlmixr2extra
 Title: Nonlinear Mixed Effects Models in Population PK/PD, Extra
         Support Functions
-Version: 3.0.0
+Version: 3.0.1
 Authors@R: c(
     person("Matthew", "Fidler", email="matthew.fidler@gmail.com", role = c("aut", "cre"),
            comment = c(ORCID = "0000-0001-8538-6691")),
@@ -36,11 +36,11 @@ Encoding: UTF-8
 NeedsCompilation: yes
 RoxygenNote: 7.3.2
 LazyData: true
-Packaged: 2024-09-18 16:05:52 UTC; matt
+Packaged: 2024-10-29 17:36:07 UTC; matt
 Author: Matthew Fidler [aut, cre] (<https://orcid.org/0000-0001-8538-6691>),
   Vipul Mann [aut],
   Vishal Sarsani [aut] (<https://orcid.org/0000-0002-9272-3438>),
   Christian Bartels [ctb],
   Bill Denney [aut] (<https://orcid.org/0000-0002-5759-428X>)
 Repository: CRAN
-Date/Publication: 2024-09-18 16:50:01 UTC
+Date/Publication: 2024-10-29 18:00:02 UTC
