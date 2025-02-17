@@ -1,3 +1,7 @@
+# nlmixr2extra 3.0.2
+
+* Make sure bootstrapped thetas are named.  Fixed issue #76
+
 # nlmixr2extra 3.0.1
 
 * Remove non-functioning SCM for now (#71)
