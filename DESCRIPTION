@@ -1,7 +1,7 @@
 Package: nlmixr2extra
 Title: Nonlinear Mixed Effects Models in Population PK/PD, Extra
         Support Functions
-Version: 3.0.2
+Version: 5.0.0
 Authors@R: c(
     person("Matthew", "Fidler", email="matthew.fidler@gmail.com", role = c("aut", "cre"),
            comment = c(ORCID = "0000-0001-8538-6691")),
@@ -27,20 +27,21 @@ URL: https://nlmixr2.github.io/nlmixr2extra/,
 BugReports: https://github.com/nlmixr2/nlmixr2extra/issues/
 Imports: checkmate, cli (>= 3.4.0), crayon, data.table, digest, dplyr,
         ggplot2, ggtext, knitr, lotri, methods, nlme, nlmixr2est (>=
-        2.1.1), Rcpp, rxode2 (>= 2.0.10), stats, symengine, utils
+        5.0.0), Rcpp, rxode2 (>= 5.0.0), stats, symengine, utils
 Suggests: brms, nlmixr2data, testthat (>= 3.0.0), withr, devtools
 LinkingTo: Rcpp, RcppArmadillo
 Biarch: true
 Config/testthat/edition: 3
 Encoding: UTF-8
 NeedsCompilation: yes
-RoxygenNote: 7.3.2
+RoxygenNote: 7.3.3
 LazyData: true
-Packaged: 2025-02-17 02:32:58 UTC; matt
-Author: Matthew Fidler [aut, cre] (<https://orcid.org/0000-0001-8538-6691>),
+Packaged: 2025-11-28 21:57:03 UTC; matt
+Author: Matthew Fidler [aut, cre] (ORCID:
+    <https://orcid.org/0000-0001-8538-6691>),
   Vipul Mann [aut],
-  Vishal Sarsani [aut] (<https://orcid.org/0000-0002-9272-3438>),
+  Vishal Sarsani [aut] (ORCID: <https://orcid.org/0000-0002-9272-3438>),
   Christian Bartels [ctb],
-  Bill Denney [aut] (<https://orcid.org/0000-0002-5759-428X>)
+  Bill Denney [aut] (ORCID: <https://orcid.org/0000-0002-5759-428X>)
 Repository: CRAN
-Date/Publication: 2025-02-17 05:40:02 UTC
+Date/Publication: 2025-11-29 06:10:14 UTC
