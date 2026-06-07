@@ -18,12 +18,12 @@
 #'   of the covariate selection as well as "resFwd" for the forward
 #'   selection method and "resBck" for the backward selection method.
 #'
-#' @noRd
+#' @export
 #' @author Vipul Mann, Matthew Fidler, Vishal Sarsani
 #'
 #' @examples
 #' \dontrun{
-#' one.cmt <- function() {
+#' oneCmt <- function() {
 #'   ini({
 #'     tka <- 0.45; label("Ka")
 #'     tcl <- log(c(0, 2.7, 100)); label("Cl")
@@ -41,7 +41,7 @@
 #'   })
 #' }
 #'
-#' fit <- nlmixr2(one.cmt, nlmixr2data::theo_sd, est = "saem", control = list(print = 0))
+#' fit <- nlmixr2(oneCmt, nlmixr2data::theo_sd, est = "saem", control = list(print = 0))
 #' rxode2::.rxWithWd(tempdir(), {# with temporary directory
 #'
 #' auto1 <- covarSearchAuto(fit, varsVec = c("ka", "cl"),
@@ -56,7 +56,7 @@
 #' d$SEX <-0
 #' d$SEX[d$ID<=6] <-1
 #'
-#' fit <- nlmixr2(one.cmt, d, est = "saem", control = list(print = 0))
+#' fit <- nlmixr2(oneCmt, d, est = "saem", control = list(print = 0))
 #'
 #' # This would restart if for some reason the search crashed:
 #'
@@ -70,8 +70,6 @@
 #'                 searchType = "forward")
 #' })
 #' }
-
-# unsuccessful runs info store; check for covInformation before resuming
 covarSearchAuto <- function(fit,
                             varsVec,
                             covarsVec,
@@ -320,17 +318,17 @@ forwardSearch <- function(varsVec,covarsVec,catvarsVec=NULL,fit, pVal = 0.05, ou
 #' @author Vipul Mann, Matthew Fidler, Vishal Sarsani
 backwardSearch <- function(varsVec,covarsVec,catvarsVec=NULL, fitorig, fitupdated, pVal = 0.01, reFitCovars = FALSE, outputDir, restart = FALSE) {
 
-  if (!inherits(fit, "nlmixr2FitCore")) {
-    stop("'fit' needs to be a nlmixr2 fit")
+  if (!inherits(fitorig, "nlmixr2FitCore")) {
+    stop("'fitorig' needs to be a nlmixr2 fit")
   } else {
-    ui <- fit$finalUiEnv
+    ui <- fitorig$finalUiEnv
   }
   if(!is.null(catvarsVec)){
-    covarsVec <- addCatCovariates(nlme::getData(fit),covarsVec = covarsVec,catcovarsVec = catvarsVec)[[2]]
-    data <- addCatCovariates(nlme::getData(fit),covarsVec = covarsVec,catcovarsVec = catvarsVec)[[1]]
+    covarsVec <- addCatCovariates(nlme::getData(fitorig),covarsVec = covarsVec,catcovarsVec = catvarsVec)[[2]]
+    data <- addCatCovariates(nlme::getData(fitorig),covarsVec = covarsVec,catcovarsVec = catvarsVec)[[1]]
   } else {
     covarsVec <- covarsVec
-    data <- nlme::getData(fit)
+    data <- nlme::getData(fitorig)
   }
 
   if (missing(outputDir)) {
