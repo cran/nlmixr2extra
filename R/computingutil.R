@@ -256,7 +256,7 @@ optimUnisampling <- function(xvec,N=1000,medValue,floorT=TRUE) {
   else if (xrmin==xvec[1] && xrmax==xvec[2]) {
     return(sampled)
   }
-  optimUnisampling(xvec,N=1000,medValue)
+  optimUnisampling(xvec, N=N, medValue, floorT=floorT)
 }
 
 #' Format confidence bounds for a variable into bracketed notation using string formatting
@@ -610,10 +610,60 @@ bootstrapFit <- function(fit,
   if (length(.nm) == 0) {
     stop("No parameters to update covariance matrix", call.=FALSE)
   }
-  .cov <- fit$bootSummary$omega$covMatrixCombined[.nm, .nm]
+  # drop = FALSE so a single retained parameter stays a 1x1 matrix for setCov()
+  .cov <- fit$bootSummary$omega$covMatrixCombined[.nm, .nm, drop = FALSE]
   .setCov(fit, covMethod = .cov)
   assign("covMethod", paste0("boot", fit$bootSummary$nboot), fit$env)
   invisible(fit)
+}
+
+#' Draw a bootstrap sample of unique ids
+#'
+#' Uses `sample.int()` on the id positions instead of `sample()` on the
+#' ids themselves; `sample(x)` treats a length one numeric `x` as
+#' `seq_len(x)`, which would silently invent ids for a stratum that
+#' holds a single subject.
+#'
+#' @param uids vector of unique ids to sample from
+#' @param size number of ids to draw (with replacement)
+#' @param prob optional selection probabilities, aligned with `uids`
+#' @return a vector of `size` ids drawn from `uids`
+#' @noRd
+.sampleUid <- function(uids, size, prob = NULL) {
+  uids[sample.int(length(uids), size = size, replace = TRUE, prob = prob)]
+}
+
+#' Split a bootstrap sample size across strata
+#'
+#' Allocates `nsamp` subjects proportionally to the number of subjects
+#' in each stratum using the largest remainder method, so the strata
+#' sizes always add up to exactly `nsamp`.
+#'
+#' @param nUid integer vector of the number of subjects in each stratum
+#' @param nsamp total number of subjects to draw
+#' @return an integer vector, the same length as `nUid`, summing to `nsamp`
+#' @noRd
+.stratSampleSize <- function(nUid, nsamp) {
+  .exact <- nsamp * nUid / sum(nUid)
+  .n <- floor(.exact)
+  .left <- nsamp - sum(.n)
+  if (.left > 0) {
+    .extra <- order(.exact - .n, decreasing = TRUE)[seq_len(.left)]
+    .n[.extra] <- .n[.extra] + 1
+  }
+  as.integer(.n)
+}
+
+#' Subset selection probabilities to the subjects of one stratum
+#'
+#' @param pvalues selection probabilities for `allUid`, or `NULL`
+#' @param allUid every unique id in the full dataset, in `pvalues` order
+#' @param uids the unique ids belonging to this stratum
+#' @return the probabilities for `uids`, or `NULL` when `pvalues` is `NULL`
+#' @noRd
+.stratProb <- function(pvalues, allUid, uids) {
+  if (is.null(pvalues)) return(NULL)
+  pvalues[match(uids, allUid)]
 }
 
 #' Perform bootstrap-sampling from a given dataframe
@@ -645,20 +695,32 @@ sampling <- function(data,
                      performStrat = FALSE,
                      stratVar) {
   checkmate::assert_data_frame(data)
-  if (is.null(nsamp)) {
-    nsamp <- length(unique(data[, uid_colname]))
+
+  # resolve the id column first; `nsamp` defaults to the number of
+  # subjects, and `data[, uid_colname]` with a missing `uid_colname`
+  # quietly selects every column instead
+  if (missing(uid_colname)) {
+    # search the dataframe for a column name of 'ID'
+    colNames <- colnames(data)
+    colNamesLower <- tolower(colNames)
+    if ("id" %in% colNamesLower) {
+      uid_colname <- colNames[match("id", colNamesLower)]
+    }
+    else {
+      uid_colname <- "ID"
+    }
   }
   else {
-    checkmate::assert_integerish(nsamp,
-                                 len = 1,
-                                 any.missing = FALSE,
-                                 lower = 2
-                                 )
+    checkmate::assert_character(uid_colname, len = 1, any.missing = FALSE)
   }
+  checkmate::assert_choice(uid_colname, colnames(data))
 
-  if (performStrat && missing(stratVar)) {
-    print("stratVar is required for stratifying")
-    stop("aborting... stratVar not specified", call. = FALSE)
+  # [[ rather than [, so a tibble yields a vector and not a one column tibble
+  idCol <- data[[uid_colname]]
+  allUid <- unique(idCol)
+
+  if (is.null(nsamp)) {
+    nsamp <- length(allUid)
   }
 
   checkmate::assert_integerish(nsamp,
@@ -667,90 +729,78 @@ sampling <- function(data,
                                any.missing = FALSE
                                )
 
-  if (missing(uid_colname)) {
-    # search the dataframe for a column name of 'ID'
-    colNames <- colnames(data)
-    colNamesLower <- tolower(colNames)
-    if ("id" %in% colNames) {
-      uid_colname <- colNames[which("id" %in% colNamesLower)]
+  if (performStrat) {
+    if (missing(stratVar)) {
+      print("stratVar is required for stratifying")
+      stop("aborting... stratVar not specified", call. = FALSE)
     }
-    else {
-      uid_colname <- "ID"
-    }
+    checkmate::assert_choice(stratVar, colnames(data))
   }
-  else {
-    checkmate::assert_character(uid_colname)
+
+  if (!is.null(pvalues)) {
+    checkmate::assert_numeric(pvalues,
+                              len = length(allUid),
+                              lower = 0,
+                              any.missing = FALSE
+                              )
+  }
+
+  # a single counter shared by every stratum; restarting it per stratum
+  # would hand the same new id to subjects from different strata
+  .env <- new.env(parent = emptyenv())
+  .env$new_id <- 1
+
+  # the rows of each subject, so a draw is a lookup instead of a scan
+  uidRows <- split(seq_len(nrow(data)), idCol)
+
+  # populate a dataframe from the sampled uids, giving each draw a new id
+  .sliceUid <- function(uids_samp) {
+    do.call(rbind, lapply(uids_samp, function(u) {
+      data_slice <- data[uidRows[[as.character(u)]], , drop = FALSE]
+
+      data_slice[[uid_colname]] <-
+        .env$new_id # assign a new ID to the sliced dataframe
+      .env$new_id <- .env$new_id + 1
+      data_slice
+    }))
   }
 
   if (performStrat) {
-    stratLevels <-
-      as.character(unique(data[, stratVar])) # char to access freq. values
+    stratCol <- as.character(data[[stratVar]])
 
-    dataSubsets <- lapply(stratLevels, function(x) {
-      data[data[, stratVar] == x, ]
-    })
+    # a bootstrap draws whole subjects, so each subject belongs to one
+    # stratum; a stratVar that changes within a subject would otherwise
+    # split that subject's records between strata
+    if (any(vapply(split(stratCol, idCol),
+                   function(x) length(unique(x)) > 1, logical(1)))) {
+      warning("'", stratVar,
+              "' is not constant within every subject; each subject is ",
+              "stratified by its first value",
+              call. = FALSE)
+    }
+    uidStrat <- stratCol[match(allUid, idCol)]
 
-    names(dataSubsets) <- stratLevels
+    # %in% rather than == so a NA stratum keeps its own subjects
+    stratLevels <- unique(uidStrat)
+    stratUid <- lapply(stratLevels, function(x) allUid[uidStrat %in% x])
 
-    tab <- table(data[stratVar])
-    nTab <- sum(tab)
+    # allocate on the number of subjects per stratum, not the number of
+    # observations, so subjects with more records are not over-weighted
+    stratN <- .stratSampleSize(lengths(stratUid), nsamp)
 
-    sampledDataSubsets <- lapply(names(dataSubsets), function(x) {
-      dat <- dataSubsets[[x]]
-
-      uids <- unique(dat[, uid_colname])
-      uids_samp <- sample(
-        list(uids),
-        size = ceiling(nsamp * unname(tab[x]) / nTab),
-        replace = TRUE,
-        prob = pvalues
-      )
-
-      sampled_df <-
-        data.frame(dat)[0, ] # initialize an empty dataframe with the same col names
-
-      # populate dataframe based on sampled uids
-      # new_id = 1
-      .env <- environment()
-      .env$new_id <- 1
-      do.call(rbind, lapply(uids_samp, function(u) {
-        data_slice <- dat[dat[, uid_colname] == u, ]
-
-        data_slice[uid_colname] <-
-          .env$new_id # assign a new ID to the sliced dataframe
-        .env$new_id <- .env$new_id + 1
-        data_slice
-      }))
+    sampledDataSubsets <- lapply(seq_along(stratUid), function(i) {
+      uids <- stratUid[[i]]
+      uids_samp <- .sampleUid(uids,
+                              size = stratN[[i]],
+                              prob = .stratProb(pvalues, allUid, uids)
+                              )
+      .sliceUid(uids_samp)
     })
     do.call("rbind", sampledDataSubsets)
   }
 
   else {
-    uids <- unique(data[, uid_colname])
-    uids_samp <-
-      sample(
-        uids,
-        size = nsamp,
-        replace = TRUE,
-        prob = pvalues
-      )
-
-    sampled_df <-
-      data.frame(data)[0, ] # initialize an empty dataframe with the same col names
-
-    # populate dataframe based on sampled uids
-    # new_id = 1
-    .env <- environment()
-    .env$new_id <- 1
-
-    do.call(rbind, lapply(uids_samp, function(u) {
-      data_slice <- data[data[, uid_colname] == u, ]
-
-      data_slice[uid_colname] <-
-        .env$new_id # assign a new ID to the sliced dataframe
-      .env$new_id <- .env$new_id + 1
-      data_slice
-    }))
+    .sliceUid(.sampleUid(allUid, size = nsamp, prob = pvalues))
   }
 }
 
@@ -1127,6 +1177,47 @@ extractVars <- function(fitlist, id = "method") {
   }
 }
 
+#' Reshape a quantile-array slice into a parameter-by-bound matrix
+#'
+#' `apply(x, 1:2, quantile)` returns an array with dimensions
+#' `nQuantLevel x nPar x nBound`.  Selecting one quantile level with
+#' `quants[k, , ]` collapses to a vector when there is a single parameter
+#' (`nPar == 1`), which then breaks the 2-D subscripting in [bootstrapFit()].
+#' Force the slice back to the intended matrix, taking the row count and
+#' dimnames from `template` (the matching matrix of bootstrap means).
+#'
+#' @param quants 3-D array produced by `apply(..., 1:2, quantile)`
+#' @param k quantile-level index selecting the first dimension
+#' @param template matrix with the desired final shape and dimnames
+#' @return a matrix with the same dimensions as `template`
+#' @noRd
+.bootstrapQuantSlice <- function(quants, k, template) {
+  matrix(quants[k, , ], nrow = nrow(template), dimnames = dimnames(template))
+}
+
+#' Correlation matrix from a bootstrap covariance matrix
+#'
+#' Wraps `cov2cor()` but tolerates zero-variance entries (a parameter that did
+#' not vary across the bootstrap) and stores the standard deviations on the
+#' diagonal, matching the convention used by the bootstrap omega summary.
+#'
+#' @param covMatrix a covariance matrix
+#' @return a correlation matrix with the standard deviations on the diagonal
+#' @noRd
+.bootstrapCombinedCor <- function(covMatrix) {
+  w <- which(diag(covMatrix) == 0)
+  if (length(w) > 0) {
+    d <- dim(covMatrix)[1]
+    corMatrix <- matrix(0, d, d)
+    corMatrix[-w, -w] <- cov2cor(covMatrix[-w, -w])
+  } else {
+    corMatrix <- cov2cor(covMatrix)
+  }
+  diag(corMatrix) <- sqrt(diag(covMatrix))
+  dimnames(corMatrix) <- dimnames(covMatrix)
+  corMatrix
+}
+
 #' Summarize the bootstrapped fits/models
 #'
 #' @param fitList a list of lists containing information on the multiple bootstrapped models; similar to the output of modelsBootstrap() function
@@ -1162,16 +1253,49 @@ getBootstrapSummary <- function(fitList,
     if (id == "omega") {
       # omega estimates
       omegaMatlist <- extractVars(fitList, id)
-      varVec <- simplify2array(omegaMatlist)
+      if (is.null(omegaMatlist[[1]]) || nrow(omegaMatlist[[1]]) == 0L) {
+        # A model with no random effects has no omega to summarize.  Build the
+        # combined covariance from the fixed-effect bootstrap estimates alone so
+        # that bootstrapFit() can still update the covariance matrix.
+        parFixedlist <- extractVars(fitList, id = "parFixedDf")
+        parFixedlistVec <- do.call("rbind", lapply(parFixedlist, function(x) {
+          ret <- x$Estimate
+          if (is.null(names(ret))) {
+            ret <- stats::setNames(ret, rownames(x))
+          }
+          ret
+        }))
+        covMatrix <- cov(parFixedlistVec)
+        return(list(
+          mean = omegaMatlist[[1]],
+          median = omegaMatlist[[1]],
+          stdDev = omegaMatlist[[1]],
+          confLower = omegaMatlist[[1]],
+          confUpper = omegaMatlist[[1]],
+          covMatrixCombined = covMatrix,
+          corMatrixCombined = .bootstrapCombinedCor(covMatrix)
+        ))
+      }
+      # simplify2array() collapses a list of 1x1 omega matrices (a single
+      # random effect) into a plain vector, which breaks the apply(, 1:2, )
+      # calls below; build the nEta x nEta x nboot array explicitly so a
+      # single-eta model is handled the same as the multi-eta case.
+      .nEta <- nrow(omegaMatlist[[1]])
+      varVec <- array(unlist(omegaMatlist),
+                      dim = c(.nEta, .nEta, length(omegaMatlist)),
+                      dimnames = list(rownames(omegaMatlist[[1]]),
+                                      colnames(omegaMatlist[[1]]), NULL))
       mn <- apply(varVec, 1:2, mean, na.rm=TRUE)
       sd <- apply(varVec, 1:2, sd, na.rm=TRUE)
 
       quants <- apply(varVec, 1:2, function(x) {
         unname(quantile(x, quantLevels, na.rm=TRUE))
       })
-      median <- quants[1, , ]
-      confLower <- quants[2, , ]
-      confUpper <- quants[3, , ]
+      # quants[k, , ] would drop to a vector for a single random effect; keep
+      # the nEta x nEta matrix shape (see .bootstrapQuantSlice)
+      median <- .bootstrapQuantSlice(quants, 1, mn)
+      confLower <- .bootstrapQuantSlice(quants, 2, mn)
+      confUpper <- .bootstrapQuantSlice(quants, 3, mn)
 
       if (stdErrType != "perc") {
         confLower <- mn + qnorm(quantLevels[[2]]) * sd
@@ -1225,22 +1349,14 @@ getBootstrapSummary <- function(fitList,
       .w <- which(vapply(namesList, function(x) {
         !all(omgVecBoot[, x] == 0)
       }, logical(1), USE.NAMES=FALSE))
-      omgVecBoot <- omgVecBoot[, .w]
+      # drop = FALSE so a single retained omega entry stays a 1-column matrix
+      omgVecBoot <- omgVecBoot[, .w, drop = FALSE]
 
 
       parFixedOmegaCombined <- cbind(parFixedlistVec, omgVecBoot)
 
       covMatrix <- cov(parFixedOmegaCombined)
-      w <- which(diag(covMatrix) == 0)
-      if (length(w) > 0) {
-        d <- dim(covMatrix)[1]
-        corMatrix <- matrix(0, d, d)
-        corMatrix[-w, -w] <- cov2cor(covMatrix[-w, -w])
-      } else {
-        corMatrix <- cov2cor(covMatrix)
-      }
-      diag(corMatrix) <- sqrt(diag(covMatrix))
-      dimnames(corMatrix) <- dimnames(covMatrix)
+      corMatrix <- .bootstrapCombinedCor(covMatrix)
       lst <- list(
         mean = mn,
         median = median,
@@ -1264,9 +1380,12 @@ getBootstrapSummary <- function(fitList,
           unname(quantile(x, quantLevels, na.rm = TRUE))
         })
 
-      median <- quants[1, , ]
-      confLower <- quants[2, , ]
-      confUpper <- quants[3, , ]
+      # quants[k, , ] would drop to a vector for a model with a single
+      # population parameter; keep the nPar x 2 matrix shape so the downstream
+      # subscripting in bootstrapFit() works (see .bootstrapQuantSlice)
+      median <- .bootstrapQuantSlice(quants, 1, mn)
+      confLower <- .bootstrapQuantSlice(quants, 2, mn)
+      confUpper <- .bootstrapQuantSlice(quants, 3, mn)
 
       if (stdErrType != "perc") {
         confLower <- mn + qnorm(quantLevels[[2]]) * sd
@@ -1328,6 +1447,10 @@ print.nlmixr2BoostrapSummary <- function(x, ..., sigdig = NULL) {
   ))
 
   lapply(seq_along(omega), function(x) {
+    # a model with no random effects has empty (NULL) omega summaries; skip them
+    if (is.null(omega[[x]]) || length(omega[[x]]) == 0L) {
+      return(invisible())
+    }
     cli::cli_text(cli::col_green(paste0("$", names(omega)[x])))
     print(signif(omega[[x]], sigdig))
   })

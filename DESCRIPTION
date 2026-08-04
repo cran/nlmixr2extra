@@ -1,7 +1,7 @@
 Package: nlmixr2extra
 Title: Nonlinear Mixed Effects Models in Population PK/PD, Extra
         Support Functions
-Version: 5.1.0
+Version: 5.2.0
 Authors@R: c(
     person("Matthew", "Fidler", email="matthew.fidler@gmail.com", role = c("aut", "cre"),
            comment = c(ORCID = "0000-0001-8538-6691")),
@@ -30,8 +30,8 @@ Imports: checkmate, cli (>= 3.4.0), crayon, data.table, digest, dplyr,
         ggplot2, ggtext, knitr, lotri, magrittr, methods, nlme,
         nlmixr2est (>= 6.0.0), Rcpp, rxode2 (>= 5.1.0), stats,
         symengine, utils
-Suggests: brms, nlmixr2data, rmarkdown, tidyr, nlmixr2lib, testthat (>=
-        3.0.0), withr
+Suggests: brms, nlmixr2data, pander, rmarkdown, tidyr, nlmixr2lib,
+        testthat (>= 3.0.0), tibble, withr
 LinkingTo: Rcpp, RcppArmadillo
 Biarch: true
 Config/testthat/edition: 3
@@ -39,7 +39,7 @@ Encoding: UTF-8
 NeedsCompilation: yes
 LazyData: true
 Config/roxygen2/version: 8.0.0
-Packaged: 2026-06-07 12:30:53 UTC; matt-fidler
+Packaged: 2026-08-04 18:39:48 UTC; matt-fidler
 Author: Matthew Fidler [aut, cre] (ORCID:
     <https://orcid.org/0000-0001-8538-6691>),
   Vipul Mann [aut],
@@ -48,4 +48,4 @@ Author: Matthew Fidler [aut, cre] (ORCID:
   Bill Denney [aut] (ORCID: <https://orcid.org/0000-0002-5759-428X>),
   Omar Elashkar [ctb] (ORCID: <https://orcid.org/0000-0002-5505-778X>)
 Repository: CRAN
-Date/Publication: 2026-06-07 13:10:02 UTC
+Date/Publication: 2026-08-04 20:50:02 UTC
