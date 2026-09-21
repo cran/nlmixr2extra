@@ -1,4 +1,105 @@
+# nlmixr2extra 5.2.1
+
+## New features
+
+- New `multistart()` re-estimates a model from many perturbed starting
+  points, so a fit that settled in a local optimum can be recognized.  It
+  takes either a fit or a model plus data, works with any estimation
+  method, and returns a `nlmixr2Multistart` object holding every start's
+  objective function and parameter estimates alongside the best fit.
+
+  `plot()` on the result gives the objective-function waterfall
+  (`type = "waterfall"`, the default) and the parameter-stability plot
+  (`type = "parameters"`).
+
+  Starting points are drawn around the initial estimates by `"uniform"`
+  (the default), `"lhs"` (Latin hypercube) or `"normal"` sampling,
+  respecting fixed parameters and declared bounds.  By default the
+  candidates are pre-screened with a cheap empirical-Bayes objective
+  evaluation so that only the most promising ones are fully estimated,
+  and each start is cached to disk so that an interrupted run resumes
+  where it left off.  See `multistartControl()` for the options.
+
+## Bug fixes
+
+- `covarSearchAuto()` selects unit-scale covariates again.  A candidate
+  coefficient is added at exactly `0`; 'nlmixr2est' (>= 7.0.2) nudges such a
+  parameter to `foceiControl(zeroTheta)` (`0.001`) and FOCEi then steps it by
+  that amount, so a numeric covariate on a unit scale (e.g. a z-score) never
+  left zero and was never selected.  Each new coefficient now starts at
+  `0.1/max(|covariate|)`, a step matched to the covariate's units that keeps
+  the starting effect within `0.1` for every subject.
+
+- `linearize()` no longer diverges when re-estimating a model whose residual
+  error parameters are small.  In the linearized model those parameters are
+  ordinary thetas, so FOCEi scaled them as linear parameters (`1/|estimate|`)
+  rather than as residual errors (`0.5*|estimate|`); for a `combined1()` model
+  this drove `add.sd` into its lower bound and left the objective function
+  33 points above where the refit started.  They now keep their residual
+  scaling, which also converges in far fewer iterations.
+
+- `preconditionFit()` accepts a decorated covariance method.  `nlmixr2est`
+  reports the sandwich as `"|r|,|s|"` when a matrix needed the absolute-value
+  correction (or `"r+,s+"` when it was nudged positive-definite), but the retry
+  loop compared against the bare `"r,s"`, so a good result read as a failure.
+  It then re-preconditioned the already-preconditioned fit until the R matrix
+  was numerically singular and `solve()` gave up with "system is
+  computationally singular".  A singular preconditioning matrix is now also
+  reported as a preconditioning failure naming the try, rather than as a bare
+  `solve()` error (#128).
+
+  The same applies to the `" (full)"` scope suffix `nlmixr2est` appends when the
+  installed covariance spans theta + residual sigma + Omega rather than the
+  structural-theta block alone (`foceiControl(covFull=)`, `TRUE` by default), so
+  `"r,s (full)"` is recognized as the sandwich too.  The shape does not matter
+  to `preconditionFit()`: the preconditioner is widened to whatever parameter
+  space the returned covariance spans.
+
+- `preconditionFit()` works again.  It built the reparameterized model lines
+  through `symengine`, which cannot parse an identifier containing a `.`, so a
+  conventional residual name like `add.sd` (as `nlmixr2Pre_add.sd`) raised
+  "SymEngine exception: Parse error" and made the function unusable for most
+  models.  The lines are now assembled directly from the preconditioning
+  matrix, which also drops the `symengine` dependency from this path (#124).
+
+- `preconditionFit()` no longer fails with "non-conformable arguments" on a
+  model with random effects.  `fit$R` spans only the population parameters
+  while the fit covariance also carries the omega elements, so the
+  preconditioner is now widened to the covariance's own parameter space --
+  identity off the theta block -- which keeps the theta/omega cross-covariances
+  correct.
+
+- `linearize()` works on a model with a correlated eta block.  The generated
+  model was built by pasting each entry of `ui$eta` into a model line, but for a
+  correlated block that property also carries the off-diagonal entry -- e.g.
+  `(eta.cl,eta.v)` -- which produced `mu_(eta.cl,eta.v) = ...` and failed to
+  parse.  The eta names are now taken from the diagonal of the ini data frame
+  (#126).
+
+- Regenerate the stored `theoFitOde` fit.  It was built against an older
+  'nlmixr2est', and its saved `$control` no longer matched what the
+  current estimator expects, so anything that re-ran the model through
+  that control -- `bootstrapFit()`, `profile()`, or a plain
+  `nlmixr2(fit$finalUiEnv, ..., control = fit$control)` -- failed with
+  "attempt access index 130/129 in VECTOR_ELT".
+
 # nlmixr2extra 5.2.0
+
+## Bug fixes
+
+- `addorremoveCovariate()` no longer turns the `iniDf` `neta1`/`neta2`
+  columns into character (#110).  The row it adds set them to
+  `NA_character_`, and `rbind()` promotes the whole column to match, so
+  `max()` and `order()` on those columns became lexicographic further
+  downstream -- with ten or more etas `max()` returned `"9"` rather than
+  `10`, so the next eta index collided with an existing one.
+
+- Ini rows that are built by hand (adding a covariate in
+  `addorremoveCovariate()`, adding thetas during linearization) no longer
+  hard-code their column list, so they still `rbind()` with an `iniDf` that
+  carries the `prior` column newer versions of `lotri` add for prior
+  distributions (#109).  Both shapes of the data frame are handled, so this
+  works with `lotri` versions that have the column and versions that do not.
 
 ## New features
 
